@@ -1,5 +1,7 @@
 #include <LPC210X.H>
 
+#define NULL 																			 '\0'
+
 /************ UART ************/
 // U0LCR Line Control Register
 #define mDIVISOR_LATCH_ACCES_BIT                   0x00000080
@@ -25,8 +27,51 @@
 // VICVectCntlx Vector Control Registers
 #define mIRQ_SLOT_ENABLE                           0x00000020
 
+// Odbior sygnalow
+#define RECIEVER_SIZE 														 4
+#define TERMINATOR																 0x00001
+
 ////////////// Zmienne globalne ////////////
 char cOdebranyZnak = '1';
+
+
+
+enum eRecieverStatus {EMPTY, READY, OVERFLOW};
+
+struct RecieverBuffer{ 
+	char cData[RECIEVER_SIZE];
+	unsigned char ucCharCtr;
+	enum eRecieverStatus eStatus;
+};
+
+struct RecieverBuffer sReciever;
+
+void Reciever_PutCharacterToBuffer(char cCharacter){
+	
+	switch(sReciever.eStatus){
+		
+		case EMPTY:
+			if(cCharacter == TERMINATOR){
+				sReciever.eStatus = READY;
+				sReciever.cData[sReciever.ucCharCtr] = NULL;
+			}
+			else if (sReciever.ucCharCtr == RECIEVER_SIZE){
+				sReciever.eStatus = OVERFLOW;
+			}
+			else{
+				sReciever.eStatus = EMPTY;
+				sReciever.cData[sReciever.ucCharCtr] = cCharacter;
+			}
+			break;
+		
+		case READY:
+			break;
+		
+		case OVERFLOW:
+			break;
+	}
+	
+}
 
 
 ///////////////////////////////////////////
