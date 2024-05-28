@@ -1,6 +1,6 @@
 #include <LPC210X.H>
 #include "uart.h"
-#include "lancuchy.h"
+#include "string.h"
 
 #define NULL 																			 '\0'
 
