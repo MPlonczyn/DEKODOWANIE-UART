@@ -1,4 +1,6 @@
 #include <LPC210X.H>
+#include "uart.h"
+#include "lancuchy.h"
 
 #define NULL 																			 '\0'
 
@@ -27,40 +29,29 @@
 // VICVectCntlx Vector Control Registers
 #define mIRQ_SLOT_ENABLE                           0x00000020
 
-// Odbior sygnalow
-#define RECIEVER_SIZE 														 4
-#define TERMINATOR																 0x00001
-
 ////////////// Zmienne globalne ////////////
 char cOdebranyZnak = '1';
 
-
-
-enum eRecieverStatus {EMPTY, READY, OVERFLOW};
-
-struct RecieverBuffer{ 
-	char cData[RECIEVER_SIZE];
-	unsigned char ucCharCtr;
-	enum eRecieverStatus eStatus;
-};
-
-struct RecieverBuffer sReciever;
+struct RecieverBuffer sRxBuffer = {"", 0, EMPTY};
 
 void Reciever_PutCharacterToBuffer(char cCharacter){
 	
-	switch(sReciever.eStatus){
+	switch(sRxBuffer.eStatus){
 		
 		case EMPTY:
 			if(cCharacter == TERMINATOR){
-				sReciever.eStatus = READY;
-				sReciever.cData[sReciever.ucCharCtr] = NULL;
+				sRxBuffer.eStatus = READY;
+				sRxBuffer.cData[sRxBuffer.ucCharCtr] = NULL;
+				sRxBuffer.ucCharCtr = 0;
 			}
-			else if (sReciever.ucCharCtr == RECIEVER_SIZE){
-				sReciever.eStatus = OVERFLOW;
+			else if (sRxBuffer.ucCharCtr == (RECIEVER_SIZE - 1)){
+				sRxBuffer.eStatus = OVERFLOW;
+				sRxBuffer.ucCharCtr = 0;
 			}
 			else{
-				sReciever.eStatus = EMPTY;
-				sReciever.cData[sReciever.ucCharCtr] = cCharacter;
+				sRxBuffer.eStatus = EMPTY;
+				sRxBuffer.cData[sRxBuffer.ucCharCtr] = cCharacter;
+				sRxBuffer.ucCharCtr++;
 			}
 			break;
 		
@@ -73,6 +64,15 @@ void Reciever_PutCharacterToBuffer(char cCharacter){
 	
 }
 
+enum eRecieverStatus eReciever_GetStatus(){
+	return sRxBuffer.eStatus;
+}
+
+void Reciever_GetStringCopy(char * ucDestination){
+	CopyString(sRxBuffer.cData,ucDestination);
+	sRxBuffer.eStatus = EMPTY;
+}
+
 
 ///////////////////////////////////////////
 __irq void UART0_Interrupt (void) {
@@ -82,7 +82,7 @@ __irq void UART0_Interrupt (void) {
 
    if      ((uiCopyOfU0IIR & mINTERRUPT_PENDING_IDETIFICATION_BITFIELD) == mRX_DATA_AVALIABLE_INTERRUPT_PENDING) // odebrano znak
    {
-      cOdebranyZnak = U0RBR;
+      Reciever_PutCharacterToBuffer(U0RBR);
    } 
    
    if ((uiCopyOfU0IIR & mINTERRUPT_PENDING_IDETIFICATION_BITFIELD) == mTHRE_INTERRUPT_PENDING)              // wyslano znak - nadajnik pusty 
